@@ -1,0 +1,15 @@
+[07-Jan-2026 07:40:07 UTC] PHP Warning:  require_once(./vqmod/vqmod.php): Failed to open stream: No such file or directory in /home/mortch/public_html/mortch-api/index.php on line 17
+[07-Jan-2026 07:40:07 UTC] PHP Fatal error:  Uncaught Error: Failed opening required './vqmod/vqmod.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/mortch/public_html/mortch-api/index.php:17
+Stack trace:
+#0 {main}
+  thrown in /home/mortch/public_html/mortch-api/index.php on line 17
+[12-Jan-2026 01:42:13 UTC] PHP Warning:  require_once(./vqmod/vqmod.php): Failed to open stream: No such file or directory in /home/mortch/public_html/mortch-api/index.php on line 17
+[12-Jan-2026 01:42:13 UTC] PHP Fatal error:  Uncaught Error: Failed opening required './vqmod/vqmod.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/mortch/public_html/mortch-api/index.php:17
+Stack trace:
+#0 {main}
+  thrown in /home/mortch/public_html/mortch-api/index.php on line 17
+[12-Jan-2026 01:42:56 UTC] PHP Warning:  require_once(./vqmod/vqmod.php): Failed to open stream: No such file or directory in /home/mortch/public_html/mortch-api/index.php on line 17
+[12-Jan-2026 01:42:56 UTC] PHP Fatal error:  Uncaught Error: Failed opening required './vqmod/vqmod.php' (include_path='.:/opt/alt/php82/usr/share/pear:/opt/alt/php82/usr/share/php:/usr/share/pear:/usr/share/php') in /home/mortch/public_html/mortch-api/index.php:17
+Stack trace:
+#0 {main}
+  thrown in /home/mortch/public_html/mortch-api/index.php on line 17
