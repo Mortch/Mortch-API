@@ -32,6 +32,10 @@ class Product extends \Opencart\System\Engine\Controller {
             $json['error'] = $this->language->get('error_warning');
         }
 
+        $product_description = [];
+        if (isset($post_info['product_description']) && $post_info['product_description']){
+            $product_description = $post_info['product_description'];
+        }
         if (!$json) {
             $this->load->model('catalog/product');
 
@@ -40,6 +44,9 @@ class Product extends \Opencart\System\Engine\Controller {
                 if ($product['model']) {
                     $product_info = $this->model_catalog_product->getProductByModel($product['model']);
                     if($product_info){
+                        if (isset($product_description[$product_info['model']])){
+                            $product['description'] = $product_description[$product_info['model']];
+                        }
                         $this->model_catalog_product->editProduct($product_info['product_id'], $product);
                     }
                 }
@@ -49,7 +56,7 @@ class Product extends \Opencart\System\Engine\Controller {
         }
 
 
-
+        $this->log->write($json);
         $this->response->addHeader('Content-Type: application/json');
         $this->response->setOutput(json_encode($json));
 	}
@@ -113,6 +120,10 @@ class Product extends \Opencart\System\Engine\Controller {
             $json['error'] = $this->language->get('error_warning');
 		}
 
+        $product_description = [];
+        if (isset($post_info['product_description']) && $post_info['product_description']){
+            $product_description = $post_info['product_description'];
+        }
 		$store_id = $this->request->get('store_id');
 		if (!$json) {
             $this->load->model('catalog/product');
@@ -120,6 +131,9 @@ class Product extends \Opencart\System\Engine\Controller {
                 if ($product['model']) {
                     $product_info = $this->model_catalog_product->getProductByModel($product['model']);
                     $this->log->write($product);
+                    if (isset($product_description[$product['model']])){
+                        $product['description'] = $product_description[$product['model']];
+                    }
                     if($product_info){
                         $this->model_catalog_product->editProduct($product_info['product_id'], $product);
                     }else{

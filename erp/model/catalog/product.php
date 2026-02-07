@@ -20,7 +20,19 @@ class Product extends \Opencart\System\Engine\Model {
         $this->model_catalog_product->addDescription($product_id, 1, $data['name_1']);
         $this->model_catalog_product->addDescription($product_id, 2, $data['name_2']);
 
+        if (isset($data['description'])){
+            $description_data = $data['description'];
 
+            $this->load->model('localisation/language');
+            $language_list = $this->model_localisation_language->getLanguages();
+            foreach ($language_list as $language){
+                if (isset($description_data[$language['code']])){
+                    $description = $this->db->escape($description_data[$language['code']]['description']);
+                    $description = str_replace("amp;",'',$description);
+                    $this->db->query("UPDATE `" . DB_PREFIX . "product_description` SET `description` = '" . $description . "', `meta_title` = '" . $this->db->escape($description_data[$language['code']]['meta_title']) . "', `meta_description` = '" . $this->db->escape($description_data[$language['code']]['meta_description']) . "', `meta_keyword` = '" . $this->db->escape($description_data[$language['code']]['meta_keyword']) . "' WHERE `product_id` = '" . (int)$product_id . "' AND `language_id` = '" . (int)$language['language_id'] . "'");
+                }
+            }
+        }
         // Stores
         $this->model_catalog_product->addStore($product_id, $store_id);
 
@@ -86,7 +98,22 @@ class Product extends \Opencart\System\Engine\Model {
         $sql.=" WHERE `product_id` = '" . (int)$product_id . "'";
         $this->log->write($sql);
 	    $this->db->query($sql);
-	}
+
+        if (isset($data['description'])){
+            $description_data = $data['description'];
+
+            $this->load->model('localisation/language');
+            $language_list = $this->model_localisation_language->getLanguages();
+            foreach ($language_list as $language){
+                if (isset($description_data[$language['code']])){
+                    $description = $this->db->escape($description_data[$language['code']]['description']);
+                    $description = str_replace("amp;",'',$description);
+                    $this->db->query("UPDATE `" . DB_PREFIX . "product_description` SET `description` = '" . $description . "', `meta_title` = '" . $this->db->escape($description_data[$language['code']]['meta_title']) . "', `meta_description` = '" . $this->db->escape($description_data[$language['code']]['meta_description']) . "', `meta_keyword` = '" . $this->db->escape($description_data[$language['code']]['meta_keyword']) . "' WHERE `product_id` = '" . (int)$product_id . "' AND `language_id` = '" . (int)$language['language_id'] . "'");
+                }
+            }
+        }
+
+    }
 
 	/**
 	 * Get Product

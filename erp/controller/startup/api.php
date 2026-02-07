@@ -93,6 +93,9 @@ class Api extends \Opencart\System\Engine\Controller {
                 if (isset($post['msgurl'])){
                     unset($post['msgurl']);
                 }
+                if (isset($post['product_description'])){
+                    unset($post['product_description']);
+                }
 				$string  = (string)$this->request->get['route'] . "\n";
 				$string .= (string)$this->request->get['call'] . "\n";
 				$string .= $api_info['username'] . "\n";
