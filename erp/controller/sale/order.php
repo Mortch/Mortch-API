@@ -40,11 +40,11 @@ class Order extends \Opencart\System\Engine\Controller {
 
             $order_status = $post_list['order_status'];
             $order_status_info = $this->model_sale_order->getOrderStatus($order_status);
-
-            if ($order_status == 'Order Approved'){
+            $order_history_info = $this->model_sale_order->getHistory($order_id,$order_status_info['order_status_id']);;
+            if ($order_status == 'Order Approved' && !$order_history_info){
                
             }
-            if($order_status == 'Packing Done' && $order_info['order_status'] != 'Packing Done'){
+            if($order_status == 'Packing Done' && $order_info['order_status'] != 'Packing Done' && !$order_history_info){
 
                 $order_history_id = $this->model_sale_order->addHistory($order_id,$order_status_info['order_status_id'],"",1);
 
@@ -56,7 +56,7 @@ class Order extends \Opencart\System\Engine\Controller {
             }
 
 
-            if($order_status == 'Shipped'){
+            if($order_status == 'Shipped' && !$order_history_info){
 
                 $comment = "";
                 if ($post_list['linkurl']){
@@ -73,7 +73,7 @@ class Order extends \Opencart\System\Engine\Controller {
 
             }
 
-            if($order_status == 'Canceled' && $order_info['order_status'] != 'Canceled'){
+            if($order_status == 'Canceled' && $order_info['order_status'] != 'Canceled' && !$order_history_info){
 
                 $comment = "";
                 $this->model_sale_order->addHistory($order_id,$order_status_info['order_status_id'],$comment,1);

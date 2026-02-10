@@ -21,6 +21,17 @@ class Order extends \Opencart\System\Engine\Model {
         }
     }
 
+    public function getHistory(int $order_id,int $order_status_id): array {
+        $order_history = $this->db->query("SELECT * FROM `" . DB_PREFIX . "order_history` `oh` WHERE `oh`.`order_id` = '" . (int)$order_id . "' AND `oh`.`order_status_id` = '" . (int)$order_status_id . "'");
+        if ($order_history->num_rows) {
+            $order_status = $order_history->row;
+
+            return $order_status;
+        }
+
+        return [];
+    }
+
     public function addOrderHistory(int $order_history_id,int $order_id,int $language_id,array $data): void {
         $sql = "INSERT INTO `" . DB_PREFIX . "order_history_info` SET `order_history_id` = '" . (int)$order_history_id . "', `order_id` = '" . (int)$order_id . "', `language_id` = '" . (int)$language_id . "'";
         if (isset($data['package_info'])){
