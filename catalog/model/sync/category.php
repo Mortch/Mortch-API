@@ -595,9 +595,21 @@ class Category extends \Opencart\System\Engine\Model {
      * $this->model_sync_category->addDescription($category_id, $language_id, $category_data);
      */
     public function addDescription(int $category_id, int $language_id, array $data): void {
+        $name = $this->db->escape($data['name']);
+        $name = str_replace("amp;",'',$name);
+
         $description = $this->db->escape($data['description']);
         $description = str_replace("amp;",'',$description);
-        $this->db->query("INSERT INTO `" . DB_PREFIX . "category_description` SET `category_id` = '" . (int)$category_id . "', `language_id` = '" . (int)$language_id . "', `name` = '" . $this->db->escape($data['name']) . "', `description` = '" . $description . "', `meta_title` = '" . $this->db->escape($data['meta_title']) . "', `meta_description` = '" . $this->db->escape($data['meta_description']) . "', `meta_keyword` = '" . $this->db->escape($data['meta_keyword']) . "'");
+
+        $meta_title = $this->db->escape($data['meta_title']);
+        $meta_title = str_replace("amp;",'',$meta_title);
+
+        $meta_description = $this->db->escape($data['meta_description']);
+        $meta_description = str_replace("amp;",'',$meta_description);
+
+        $meta_keyword = $this->db->escape($data['meta_keyword']);
+        $meta_keyword = str_replace("amp;",'',$meta_keyword);
+        $this->db->query("INSERT INTO `" . DB_PREFIX . "category_description` SET `category_id` = '" . (int)$category_id . "', `language_id` = '" . (int)$language_id . "', `name` = '" . $name . "', `description` = '" . $description . "', `meta_title` = '" . $meta_title . "', `meta_description` = '" . $meta_description . "', `meta_keyword` = '" . $meta_keyword . "'");
     }
 
     /**
