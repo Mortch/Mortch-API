@@ -25,7 +25,8 @@ class Cart extends \Opencart\System\Engine\Controller {
         $this->log->write('Cron cart');
         $customer_id = $this->request->get['customer_id'];
         $this->load->model('cron/cart');
-//        $this->model_cron_order->pushOrderInfo($order_id);
+        $this->model_cron_cart->pushCartInfo($customer_id);
+        /* 20260717关闭
         $count = 2;
         for ($i = 0; $i < $count; $i++){
             $this->log->write('customer id ' . $customer_id);
@@ -34,5 +35,6 @@ class Cart extends \Opencart\System\Engine\Controller {
                 sleep(30);
             }
         }
+        */
     }
 }

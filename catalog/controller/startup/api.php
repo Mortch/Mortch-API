@@ -23,11 +23,12 @@ class Api extends \Opencart\System\Engine\Controller {
 			'sync/sync.category',
             'sync/sync.product',
             'sync/sync.atlas',
+//            'backup/backup'
 		];
 
-//		$noVerify = ['cron/cron','cron/order','cron/cart','cron/sync','sync/order','cron/cron.test'];
+		$noVerify = ['backup/backup'];
 
-        $noVerify =[];
+//        $noVerify =[];
 		if (in_array($route,$noVerify)){
 		    return null;
         }

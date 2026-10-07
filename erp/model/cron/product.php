@@ -115,7 +115,7 @@ class Product extends \Opencart\System\Engine\Model {
             }
 
 //            $http_host = "erp.mortch.cn:7777";
-            $http_host = "mortch.sunny-eis.com:7777";
+            $http_host = "mortch.sunny-eis.com";
             $php_self = "/mortch_api_abroad.php";
             $sync_key = $api_info['key'];
 
@@ -159,7 +159,8 @@ class Product extends \Opencart\System\Engine\Model {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 30,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => $method,

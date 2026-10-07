@@ -60,7 +60,7 @@ class Cart extends \Opencart\System\Engine\Model {
                 return false;
             }
 
-            $http_host = "erp.mortch.cn:7777";
+            $http_host = "erp.mortch.cn";
 
 //            $http_host = "mortch.sunny-eis.com:7777";
             $php_self = "/mortch_api_cart.php";
@@ -94,7 +94,8 @@ class Cart extends \Opencart\System\Engine\Model {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 30,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => $method,

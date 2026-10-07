@@ -22,7 +22,7 @@ class Order extends \Opencart\System\Engine\Model {
     }
 
 	public function getOrder(int $order_id): array {
-	    $field = "order_id,customer_id,firstname,lastname,email,telephone,shipping_firstname,shipping_lastname,shipping_company,shipping_address_1,shipping_city,shipping_country,shipping_zone,total,currency_code,shipping_method,comment,payment_method,order_status_id,invoice_no,invoice_prefix";
+	    $field = "order_id,customer_id,firstname,lastname,email,telephone,shipping_firstname,shipping_lastname,shipping_company,shipping_address_1,shipping_address_2,shipping_city,shipping_country,shipping_postcode,shipping_zone,total,currency_code,shipping_method,comment,payment_method,order_status_id,invoice_no,invoice_prefix,custom_field";
 		$order_query = $this->db->query("SELECT ".$field."  FROM `" . DB_PREFIX . "order`  WHERE `order_id` = '" . (int)$order_id . "'");
 		$this->log->write("SELECT ".$field."  FROM `" . DB_PREFIX . "order`  WHERE `order_id` = '" . (int)$order_id . "'");
 
@@ -147,7 +147,7 @@ class Order extends \Opencart\System\Engine\Model {
 
 //            $http_host = "erp.mortch.cn:7777";
 
-            $http_host = "mortch.sunny-eis.com:7777";
+            $http_host = "mortch.sunny-eis.com";
             $php_self = "/mortch_api_abroad.php";
             $sync_key = $api_info['key'];
 
@@ -234,7 +234,8 @@ class Order extends \Opencart\System\Engine\Model {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
-            CURLOPT_TIMEOUT => 0,
+            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_TIMEOUT => 30,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => $method,

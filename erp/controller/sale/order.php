@@ -40,7 +40,11 @@ class Order extends \Opencart\System\Engine\Controller {
 
             $order_status = $post_list['order_status'];
             $order_status_info = $this->model_sale_order->getOrderStatus($order_status);
-            $order_history_info = $this->model_sale_order->getHistory($order_id,$order_status_info['order_status_id']);;
+            $order_history_info = [];
+            if ($order_status_info){
+                $order_history_info = $this->model_sale_order->getHistory($order_id,$order_status_info['order_status_id']);;
+            }
+
             if ($order_status == 'Order Approved' && !$order_history_info){
                
             }

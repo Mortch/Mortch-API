@@ -25,18 +25,42 @@ class Sync extends \Opencart\System\Engine\Controller {
         $this->log->write('Cron sync');
         $this->load->model('cron/sync');
         $result = $this->model_cron_sync->getSyncs();
+
         foreach ($result as $sync){
             $this->log->write('Cron sync ' . $sync['sync_id']);
-            if ($sync['code'] == 'cart'){
-                $this->load->model('cron/cart');
-                $res = $this->model_cron_cart->pushCartInfo($sync['value']);
+
+            $res = false;
+            $error = '';
+
+            try {
+                if ($sync['code'] == 'cart'){
+                    $this->load->model('cron/cart');
+                    $res = $this->model_cron_cart->pushCartInfo($sync['value']);
+
+                    if (!$res){
+                        $error = 'Cart sync returned false';
+                    }
+                } elseif ($sync['code'] == 'order'){
+                    $this->load->model('cron/order');
+                    $res = $this->model_cron_order->pushOrderInfo($sync['value']);
+
+                    if (!$res){
+                        $error = 'Order sync returned false';
+                    }
+                } else {
+                    $error = 'Unknown sync code: ' . $sync['code'];
+                }
+            } catch (\Throwable $e) {
+                $res = false;
+                $error = $e->getMessage();
+
+                $this->log->write('Cron sync exception ' . $sync['sync_id'] . ': ' . $error);
             }
-            if ($sync['code'] == 'order'){
-                $this->load->model('cron/order');
-                $res = $this->model_cron_order->pushOrderInfo($sync['value']);
-            }
+
             if ($res){
                 $this->model_cron_sync->updateSync($sync['sync_id']);
+            } else {
+                $this->model_cron_sync->failSync($sync['sync_id'], $error);
             }
         }
     }
