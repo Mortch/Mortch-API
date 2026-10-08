@@ -112,6 +112,16 @@ class Order extends \Opencart\System\Engine\Model {
 
 
     public function pushOrderInfo($order_id){
+        // 该订单已经同步成功过就不再推送，避免 ERP 里出现重复订单
+        // （页面刷新、异步重试、队列重跑都会走到这里）
+        $synced_query = $this->db->query("SELECT `is_sync_erp` FROM `" . DB_PREFIX . "order` WHERE `order_id` = '" . (int)$order_id . "'");
+
+        if ($synced_query->num_rows && $synced_query->row['is_sync_erp']) {
+            $this->log->write('Order already synced to ERP, skip: ' . (int)$order_id);
+
+            return true;
+        }
+
         $order_info = $this->getOrder($order_id);
 
         $this->log->write($order_info);

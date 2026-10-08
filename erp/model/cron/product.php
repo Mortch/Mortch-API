@@ -89,6 +89,9 @@ class Product extends \Opencart\System\Engine\Model {
     }
 
     public function pushProductList(){
+        // 整表推送，EIS 处理需要时间，别让 PHP 的执行时间限制先把它杀掉
+        @set_time_limit(0);
+
         $product_list = $this->getProducts();
 
         $products = [];
@@ -160,7 +163,7 @@ class Product extends \Opencart\System\Engine\Model {
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
             CURLOPT_CONNECTTIMEOUT => 10,
-            CURLOPT_TIMEOUT => 30,
+            CURLOPT_TIMEOUT => 300,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => $method,
@@ -173,6 +176,8 @@ class Product extends \Opencart\System\Engine\Model {
 
         $response = curl_exec($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlErrno = curl_errno($curl);
+        $curlError = curl_error($curl);
         $data = json_decode($response, true);
 
         $this->log->write($data);
@@ -184,7 +189,7 @@ class Product extends \Opencart\System\Engine\Model {
             }
 
         }else{
-            error_log("Sync failed with HTTP code $httpCode");
+            error_log("Sync failed with HTTP code $httpCode, curl errno $curlErrno: $curlError");
             return null;
         }
     }

@@ -63,18 +63,28 @@ class Sync extends \Opencart\System\Engine\Controller {
         }
 
         if (!$json) {
-            $this->load->model('sync/product');
+            try {
+                $this->load->model('sync/product');
 
-            if ($product_info['product_id']) {
-                $product_data = $this->model_sync_product->getProductByProductId($product_info['product_id']);
-                if($product_data){
-                    $this->model_sync_product->editProduct($product_info['product_id'], $product_info);
-                }else{
-                    $this->model_sync_product->addProduct($product_info);
+                if (isset($product_info['product_id']) && $product_info['product_id']) {
+                    $product_data = $this->model_sync_product->getProductByProductId($product_info['product_id']);
+                    if($product_data){
+                        $this->model_sync_product->editProduct($product_info['product_id'], $product_info);
+                    }else{
+                        $this->model_sync_product->addProduct($product_info);
+                    }
+                    $json['code'] = 0;
+                    $json['success'] = $this->language->get('text_success');
+                } else {
+                    $json['code'] = 1;
+                    $json['error'] = 'product_id is missing in the posted data';
                 }
+            } catch (\Throwable $e) {
+                $this->log->write('Sync product failed: ' . $e->getMessage());
+
+                $json['code'] = 1;
+                $json['error'] = 'Sync product failed: ' . $e->getMessage();
             }
-            $json['code'] = 0;
-            $json['success'] = $this->language->get('text_success');
         }
 
 

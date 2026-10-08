@@ -69,6 +69,13 @@ class Product extends \Opencart\System\Engine\Model {
      * $product_id = $this->model_sync_product->addProduct($product_data);
      */
     public function addProduct(array $data): int {
+        // 表单里已经没有 ERP 状态字段了（已改成系统设置里按库存状态统一控制），
+        // 这里补默认值，避免写入时取不到键；ERP 状态由本站的 ERP 同步维护。
+        $data['erp_status'] = $data['erp_status'] ?? 0;
+        $data['erp_stock_status_id'] = $data['erp_stock_status_id'] ?? 0;
+        $data['erp_exist_status'] = $data['erp_exist_status'] ?? 0;
+        $data['erp_exist_stock_status_id'] = $data['erp_exist_stock_status_id'] ?? 0;
+
         $this->db->query("INSERT INTO `" . DB_PREFIX . "product` SET `product_id` = '" . (int)$data['product_id'] . "',`master_id` = '" . (int)$data['master_id'] . "', `model` = '" . $this->db->escape((string)$data['model']) . "', `location` = '" . $this->db->escape((string)$data['location']) . "', `variant` = '" . $this->db->escape(!empty($data['variant']) ? json_encode($data['variant']) : '') . "', `override` = '" . $this->db->escape(!empty($data['override']) ? json_encode($data['override']) : '') . "',  `minimum` = '" . (int)$data['minimum'] . "', `subtract` = '" . (isset($data['subtract']) ? (bool)$data['subtract'] : 0) . "', `stock_status_id` = '" . (int)$data['stock_status_id'] . "', `date_available` = '" . $this->db->escape((string)$data['date_available']) . "', `manufacturer_id` = '" . (int)$data['manufacturer_id'] . "', `shipping` = '" . (isset($data['shipping']) ? (bool)$data['shipping'] : 0) . "', `points` = '" . (int)$data['points'] . "', `weight` = '" . (float)$data['weight'] . "', `weight_class_id` = '" . (int)$data['weight_class_id'] . "', `length` = '" . (float)$data['length'] . "', `width` = '" . (float)$data['width'] . "', `height` = '" . (float)$data['height'] . "', `length_class_id` = '" . (int)$data['length_class_id'] . "', `status` = '" . (bool)($data['status'] ?? 0) . "', `tax_class_id` = '" . (int)$data['tax_class_id'] . "',`erp_status` = '" . (int)$data['erp_status'] . "', `erp_stock_status_id` = '" . (int)$data['erp_stock_status_id'] . "', `erp_exist_status` = '" . (int)$data['erp_exist_status'] . "', `erp_exist_stock_status_id` = '" . (int)$data['erp_exist_stock_status_id'] . "', `sort_order` = '" . (int)$data['sort_order'] . "', `date_added` = NOW(), `date_modified` = NOW()");
 
         $product_id = $data['product_id'];
@@ -272,6 +279,18 @@ class Product extends \Opencart\System\Engine\Model {
      * $this->model_sync_product->editProduct($product_id, $product_data);
      */
     public function editProduct(int $product_id, array $data): void {
+        // 国内站同步过来的数据里已经没有 ERP 状态字段了（已挪到系统设置 → 选项设置 → 商品库存），
+        // 这里用国际站库里的现值补上，否则下面的 UPDATE 会把 ERP 状态冲成 0，
+        // 商品在国际站显示成"ERP停售 / ERP无产品"，看起来就像同步没生效。
+        $erp_query = $this->db->query("SELECT `erp_status`, `erp_stock_status_id`, `erp_exist_status`, `erp_exist_stock_status_id` FROM `" . DB_PREFIX . "product` WHERE `product_id` = '" . (int)$product_id . "'");
+
+        if ($erp_query->num_rows) {
+            $data['erp_status'] = $erp_query->row['erp_status'];
+            $data['erp_stock_status_id'] = $erp_query->row['erp_stock_status_id'];
+            $data['erp_exist_status'] = $erp_query->row['erp_exist_status'];
+            $data['erp_exist_stock_status_id'] = $erp_query->row['erp_exist_stock_status_id'];
+        }
+
         $this->db->query("UPDATE `" . DB_PREFIX . "product` SET `erp_status` = '" . (int)$data['erp_status'] . "', `erp_stock_status_id` = '" . (int)$data['erp_stock_status_id'] . "', `erp_exist_status` = '" . (int)$data['erp_exist_status'] . "', `erp_exist_stock_status_id` = '" . (int)$data['erp_exist_stock_status_id'] . "', `model` = '" . $this->db->escape((string)$data['model']) . "', `location` = '" . $this->db->escape((string)$data['location']) . "', `variant` = '" . $this->db->escape(!empty($data['variant']) ? json_encode($data['variant']) : '') . "', `override` = '" . $this->db->escape(!empty($data['override']) ? json_encode($data['override']) : '') . "',  `minimum` = '" . (int)$data['minimum'] . "', `subtract` = '" . (isset($data['subtract']) ? (bool)$data['subtract'] : 0) . "', `stock_status_id` = '" . (int)$data['stock_status_id'] . "', `image` = '" . $this->db->escape((string)$data['image']) . "', `date_available` = '" . $this->db->escape((string)$data['date_available']) . "', `manufacturer_id` = '" . (int)$data['manufacturer_id'] . "', `shipping` = '" . (isset($data['shipping']) ? (bool)$data['shipping'] : 0) . "',  `points` = '" . (int)$data['points'] . "', `weight` = '" . (float)$data['weight'] . "', `weight_class_id` = '" . (int)$data['weight_class_id'] . "', `length` = '" . (float)$data['length'] . "', `width` = '" . (float)$data['width'] . "', `height` = '" . (float)$data['height'] . "', `length_class_id` = '" . (int)$data['length_class_id'] . "', `status` = '" . (bool)($data['status'] ?? 0) . "', `tax_class_id` = '" . (int)$data['tax_class_id'] . "', `sort_order` = '" . (int)$data['sort_order'] . "', `date_modified` = NOW() WHERE `product_id` = '" . (int)$product_id . "'");
 
         // Description
