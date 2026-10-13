@@ -66,12 +66,32 @@ class Order extends \Opencart\System\Engine\Controller {
                 if ($post_list['linkurl']){
                     $comment="<a href='".$post_list['linkurl']."'>".$post_list['linkurl']."</a>";
                 }
+
+                // FedEx / DHL 交寄时，先同步一条 DOCUMENTS 消息（内容为 AW 空运单下载链接），再同步 Shipped
+                $shipping_name = isset($post_list['shipping_name']) ? strtolower(trim((string)$post_list['shipping_name'])) : '';
+
+                if ($shipping_name == 'fedex' || $shipping_name == 'dhl'){
+                    $documents_status_info = $this->model_sale_order->getOrderStatus('Documents');
+
+                    if ($documents_status_info && $order_info['invoice_no']){
+                        $invoice_no = $order_info['invoice_prefix'] . $order_info['invoice_no'];
+                        $aw_url = 'http://www.mortch.com/orders/' . $invoice_no . 'AW.pdf';
+                        $documents_comment = $this->language->get('text_download_aw') . " <a href='" . $aw_url . "'>" . $aw_url . "</a>";
+
+                        $this->model_sale_order->addHistory($order_id,$documents_status_info['order_status_id'],$documents_comment,1);
+                    }
+                }
+
                 $order_history_id = $this->model_sale_order->addHistory($order_id,$order_status_info['order_status_id'],$comment,1);
 
                 $order_history['shipping_name'] = $post_list['shipping_name'];
                 $order_history['shipping_no'] = $post_list['shipping_no'];
                 $this->model_sale_order->addOrderHistory((int)$order_history_id,(int)$order_id,1,$order_history);
-                if (strtolower($post_list['shipping_name']) == 'fedex' || strtolower($post_list['shipping_name']) == 'dhl' ){
+
+                // 推送 PayPal 跟踪号：FedEx / DHL / SFC / Yanwen / YunExpress
+                $paypal_shipping_name = strtolower(preg_replace('/[^a-z0-9]/i','',(string)$post_list['shipping_name']));
+
+                if (in_array($paypal_shipping_name, ['fedex','fedexexpress','dhl','dhlexpress','sfc','sfcexpress','sfcservice','yanwen','yanwenlogistics','yunexpress'])){
                     $this->model_sale_order->addOrderHistoryForPaypal((int)$order_id,$order_history);
                 }
 

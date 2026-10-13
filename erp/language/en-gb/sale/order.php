@@ -5,3 +5,5 @@ $_['text_shipping_no']            = 'Tracking No.';
 
 $_['text_openlink']            = 'Open Link:';
 
+$_['text_download_aw']            = 'Download AW:';
+

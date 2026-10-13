@@ -11,6 +11,37 @@ class Backup extends \Opencart\System\Engine\Controller {
 
     public function index() {
 
+        $backup_dir = DIR_STORAGE . 'backup/other/';
+
+        if (!is_dir($backup_dir)) {
+            @mkdir($backup_dir, 0755, true);
+        }
+
+        $lock_file = $backup_dir . '.backup.lock';
+        $last_run_file = $backup_dir . '.last_backup';
+        $lock_handle = fopen($lock_file, 'c');
+
+        if (!$lock_handle || !flock($lock_handle, LOCK_EX | LOCK_NB)) {
+            $this->log->write('Backup skipped: another backup process is running.');
+            $this->response->setOutput(json_encode(['status' => 'skipped', 'reason' => 'locked']));
+
+            return;
+        }
+
+        if (is_file($last_run_file) && (time() - filemtime($last_run_file) < 86400)) {
+            $this->log->write('Backup skipped: it already ran within the last 24 hours.');
+            flock($lock_handle, LOCK_UN);
+            fclose($lock_handle);
+            $this->response->setOutput(json_encode(['status' => 'skipped', 'reason' => 'interval']));
+
+            return;
+        }
+
+        @touch($last_run_file);
+
+        $this->log->write('Backup started. IP=' . ($this->request->server['REMOTE_ADDR'] ?? '') . ' UA=' . ($this->request->server['HTTP_USER_AGENT'] ?? ''));
+
+        try {
         $filename = date('Y-m-d H.i.s') . '.sql';
 
         $db_engine = "mysqli";
@@ -29,14 +60,14 @@ class Backup extends \Opencart\System\Engine\Controller {
 
 //        var_dump($db->isConnected());exit;
         if (!$db->isConnected()){
-            return false;
+            throw new \RuntimeException('Database connection failed.');
         }
         $this->load->model('tool/backup');
 
         $table_list = $this->model_tool_backup->getTables($db,$db_database,$db_prefix);
 
         if (!$table_list){
-            return false;
+            throw new \RuntimeException('No database tables found.');
         }
         $page = 1;
         foreach ($table_list as $table){
@@ -102,5 +133,28 @@ class Backup extends \Opencart\System\Engine\Controller {
 
         }
 
+            $this->cleanupOldBackups($backup_dir);
+            $this->log->write('Backup completed: ' . $filename);
+
+            $this->response->setOutput(json_encode(['status' => 'success', 'file' => $filename]));
+        } catch (\Throwable $e) {
+            $this->log->write('Backup failed: ' . $e->getMessage());
+            $this->response->addHeader($this->request->server['SERVER_PROTOCOL'] . ' 500 Internal Server Error');
+            $this->response->setOutput(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+        } finally {
+            flock($lock_handle, LOCK_UN);
+            fclose($lock_handle);
+        }
+
+    }
+
+    private function cleanupOldBackups(string $backup_dir): void {
+        $expires = time() - (30 * 86400);
+
+        foreach (glob($backup_dir . '*.sql') ?: [] as $file) {
+            if (is_file($file) && filemtime($file) < $expires) {
+                @unlink($file);
+            }
+        }
     }
 }
