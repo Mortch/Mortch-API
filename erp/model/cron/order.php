@@ -22,12 +22,25 @@ class Order extends \Opencart\System\Engine\Model {
     }
 
 	public function getOrder(int $order_id): array {
-	    $field = "order_id,customer_id,firstname,lastname,email,telephone,shipping_firstname,shipping_lastname,shipping_company,shipping_address_1,shipping_address_2,shipping_city,shipping_country,shipping_postcode,shipping_zone,total,currency_code,shipping_method,comment,payment_method,order_status_id,invoice_no,invoice_prefix,custom_field";
+	    $field = "order_id,customer_id,firstname,lastname,email,telephone,shipping_firstname,shipping_lastname,shipping_company,shipping_address_1,shipping_address_2,shipping_city,shipping_country,shipping_postcode,shipping_zone,total,currency_code,shipping_method,comment,payment_method,order_status_id,invoice_no,invoice_prefix,custom_field,payment_custom_field,shipping_custom_field";
 		$order_query = $this->db->query("SELECT ".$field."  FROM `" . DB_PREFIX . "order`  WHERE `order_id` = '" . (int)$order_id . "'");
 		$this->log->write("SELECT ".$field."  FROM `" . DB_PREFIX . "order`  WHERE `order_id` = '" . (int)$order_id . "'");
 
 		if ($order_query->num_rows) {
 
+			// The Tax No. is an address custom field, so it sits in shipping_custom_field /
+			// payment_custom_field. The ERP reads custom_field["2"] as the tax number, so the
+			// address fields are handed over whenever they actually contain a value.
+			foreach (['shipping_custom_field', 'payment_custom_field'] as $custom_field_key) {
+				$custom_field_json = (string)$order_query->row[$custom_field_key];
+				$custom_field_data = $custom_field_json !== '' ? json_decode($custom_field_json, true) : [];
+
+				if (!empty($custom_field_data)) {
+					$order_query->row['custom_field'] = $custom_field_json;
+
+					break;
+				}
+			}
 
 			// Customer
 			$customer_info = $this->getCustomer($order_query->row['customer_id']);
