@@ -11,7 +11,10 @@ class Product extends \Opencart\System\Engine\Model {
 
 
     public function addProduct(array $data,$store_id = 0): int {
-        $this->db->query("INSERT INTO `" . DB_PREFIX . "product` SET  `model` = '" . $this->db->escape((string)$data['model']) . "', `quantity` = '" . (int)$data['quantity'] . "', `price` = '" . (float)$data['price'] . "', `weight` = '" . (float)$data['weight'] . "', `length` = '" . (float)$data['length'] . "', `width` = '" . (float)$data['width'] . "', `height` = '" . (float)$data['height'] . "', `status` = '" . (bool)($data['status'] ?? 0) . "', `date_added` = NOW(), `date_modified` = NOW()");
+        $status = isset($data['status']) && is_scalar($data['status']) ? trim((string)$data['status']) : '';
+        $erp_status = $status === '在售' ? 1 : 0;
+
+        $this->db->query("INSERT INTO `" . DB_PREFIX . "product` SET  `model` = '" . $this->db->escape((string)$data['model']) . "', `quantity` = '" . (int)$data['quantity'] . "', `price` = '" . (float)$data['price'] . "', `weight` = '" . (float)$data['weight'] . "', `length` = '" . (float)$data['length'] . "', `width` = '" . (float)$data['width'] . "', `height` = '" . (float)$data['height'] . "', `status` = '" . (bool)($data['status'] ?? 0) . "', `erp_status` = '" . (int)$erp_status . "', `erp_exist_status` = '1', `date_added` = NOW(), `date_modified` = NOW()");
 
         $product_id = $this->db->getLastId();
 
@@ -89,11 +92,12 @@ class Product extends \Opencart\System\Engine\Model {
         if (isset($data['height'])){
             $sql.=",`height` = '" . (float)$data['height'] . "'";
         }
-        if (isset($data['status']) && $data['status']=='停售'){
-            $sql.=",`erp_status` = 0";
-        }
-        if (isset($data['status']) && $data['status']=='在售'){
-            $sql.=",`erp_status` = 1";
+        // Every ERP update proves the product still exists in EIS.
+        $sql .= ", `erp_exist_status` = '1'";
+
+        if (isset($data['status']) && is_scalar($data['status'])){
+            $erp_status = trim((string)$data['status']) === '在售' ? 1 : 0;
+            $sql .= ", `erp_status` = '" . (int)$erp_status . "'";
         }
         $sql.=" WHERE `product_id` = '" . (int)$product_id . "'";
         $this->log->write($sql);

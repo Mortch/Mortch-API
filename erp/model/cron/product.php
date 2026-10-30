@@ -83,7 +83,7 @@ class Product extends \Opencart\System\Engine\Model {
     }
 
     public function editProduct(string $model): void {
-        $sql = "UPDATE `" . DB_PREFIX . "product` SET `erp_exist_status` = '0' WHERE `model`='" . $this->db->escape((string)$model) . "';";
+        $sql = "UPDATE `" . DB_PREFIX . "product` SET `quantity` = '0', `erp_status` = '0', `erp_exist_status` = '0' WHERE `model`='" . $this->db->escape((string)$model) . "';";
 //        $this->log->write($sql);
         $this->db->query($sql);
     }
@@ -138,7 +138,7 @@ class Product extends \Opencart\System\Engine\Model {
             $this->log->write($url);
 
             $result = $this->curlRequest($url,"POST",$products);
-            if($result){
+            if($result !== null){
                 $this->db->query("UPDATE `" . DB_PREFIX . "product` SET `erp_exist_status` = 1;");
 
                 foreach ($result as $model){
