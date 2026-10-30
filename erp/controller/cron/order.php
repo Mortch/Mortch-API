@@ -36,14 +36,18 @@ class Order extends \Opencart\System\Engine\Controller {
             $this->log->write('Cron order wait sync: ' . $order_id);
             $result = $this->model_cron_order->pushOrderInfo($order_id);
 
-            if ($result && $sync_id) {
-                $this->model_cron_sync->updateSync($sync_id);
+            if ($sync_id) {
+                if ($result) {
+                    $this->model_cron_sync->updateSync($sync_id);
+                } else {
+                    $this->model_cron_sync->failSync($sync_id, 'Manual order sync failed');
+                }
             }
 
             return;
         }
 
-        // 新订单自动同步：先把响应返回给调用方，再在后台延迟同步
+        // 新订单自动同步：先返回响应，再在后台执行一次推送。
         ignore_user_abort(true);
         set_time_limit(0);
 
@@ -61,30 +65,23 @@ class Order extends \Opencart\System\Engine\Controller {
             @flush();
         }
 
-        // 第一次 30 秒后同步，失败则每 60 秒重试
-        $delays = [30, 60, 60, 60, 60];
+        $this->log->write("Order async sync attempt: order_id={$order_id}");
+        $result = $this->model_cron_order->pushOrderInfo($order_id);
 
-        foreach ($delays as $index => $delay) {
-            sleep($delay);
-
-            $attempt = $index + 1;
-            $this->log->write("Order async sync attempt {$attempt}: order_id={$order_id}");
-
-            $result = $this->model_cron_order->pushOrderInfo($order_id);
-
-            if ($result) {
-                if ($sync_id) {
-                    $this->model_cron_sync->updateSync($sync_id);
-                }
-
-                $this->log->write("Order async sync success: order_id={$order_id}, attempt={$attempt}");
-
-                return;
+        if ($result) {
+            if ($sync_id) {
+                $this->model_cron_sync->updateSync($sync_id);
             }
 
-            $this->log->write("Order async sync failed: order_id={$order_id}, attempt={$attempt}");
+            $this->log->write("Order async sync success: order_id={$order_id}");
+
+            return;
         }
 
-        $this->log->write("Order async sync gave up: order_id={$order_id}");
+        if ($sync_id) {
+            $this->model_cron_sync->failSync($sync_id, 'Async order sync failed');
+        }
+
+        $this->log->write("Order async sync failed: order_id={$order_id}");
     }
 }

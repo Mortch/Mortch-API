@@ -38,6 +38,10 @@ class Cron extends \Opencart\System\Engine\Controller {
             }
 
         }else{
+            // Queue retries are bounded by cron/sync and must run every time the
+            // main cron endpoint is invoked, even if no minute-level cron row exists.
+            $this->load->controller('cron/sync');
+
             $results = $this->model_setting_cron->getCrons();
             foreach ($results as $result) {
                 if ($result['status'] && (strtotime('+1 ' . $result['cycle'], strtotime($result['date_modified'])) < ($time + 10))) {
