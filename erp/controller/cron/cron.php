@@ -12,7 +12,6 @@ class Cron extends \Opencart\System\Engine\Controller {
 	 * @return void
 	 */
 	public function index(): void {
-	    $this->log->write('Cron');
 		$time = time();
 
 		$this->load->model('setting/cron');
@@ -21,7 +20,6 @@ class Cron extends \Opencart\System\Engine\Controller {
             $code = $this->request->get['code'];
             $result = $this->model_setting_cron->getCronByCode($code);
             if ($result) {
-                $this->log->write($result);
                 if(isset($this->request->get['order_id'])){
                     $this->load->controller($result['action'],[
                         'order_id' => $this->request->get['order_id']
@@ -35,6 +33,7 @@ class Cron extends \Opencart\System\Engine\Controller {
                 }
 
                 $this->model_setting_cron->editCron($result['cron_id']);
+                $this->log->write('Cron completed: ' . $result['code']);
             }
 
         }else{
@@ -46,10 +45,10 @@ class Cron extends \Opencart\System\Engine\Controller {
             foreach ($results as $result) {
                 if ($result['status'] && (strtotime('+1 ' . $result['cycle'], strtotime($result['date_modified'])) < ($time + 10))) {
                     if ($result['status']) {
-                        $this->log->write($result['action']);
                         $this->load->controller($result['action']);
 
                         $this->model_setting_cron->editCron($result['cron_id']);
+                        $this->log->write('Cron completed: ' . $result['code']);
                     }
                 }
             }

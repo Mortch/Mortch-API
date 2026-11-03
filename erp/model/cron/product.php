@@ -88,9 +88,51 @@ class Product extends \Opencart\System\Engine\Model {
         $this->db->query($sql);
     }
 
+    private function reconnectDatabase(): void {
+        $this->registry->set('db', new \Opencart\System\Library\DB(
+            DB_DRIVER,
+            DB_HOSTNAME,
+            DB_USERNAME,
+            DB_PASSWORD,
+            DB_DATABASE,
+            DB_PORT,
+            DB_SSL_KEY,
+            DB_SSL_CERT,
+            DB_SSL_CA
+        ));
+    }
+
+    private function markProductsSynced(): void {
+        $sql = "UPDATE `" . DB_PREFIX . "product` SET `erp_exist_status` = 1;";
+
+        try {
+            $this->db->query($sql);
+        } catch (\Throwable $e) {
+            $connection_error = false;
+
+            foreach (['Error No: 2002', 'Error No: 2006', 'Error No: 2013'] as $error_code) {
+                if (strpos($e->getMessage(), $error_code) !== false) {
+                    $connection_error = true;
+                    break;
+                }
+            }
+
+            if (!$connection_error) {
+                throw $e;
+            }
+
+            $this->reconnectDatabase();
+            $this->db->query($sql);
+        }
+    }
+
     public function pushProductList(){
         // 整表推送，EIS 处理需要时间，别让 PHP 的执行时间限制先把它杀掉
         @set_time_limit(0);
+
+        // The upstream full-catalog request can run for up to 300 seconds.
+        // Keep this session alive long enough to write the result back afterwards.
+        $this->db->query("SET SESSION wait_timeout = 900");
 
         $product_list = $this->getProducts();
 
@@ -139,7 +181,7 @@ class Product extends \Opencart\System\Engine\Model {
 
             $result = $this->curlRequest($url,"POST",$products);
             if($result !== null){
-                $this->db->query("UPDATE `" . DB_PREFIX . "product` SET `erp_exist_status` = 1;");
+                $this->markProductsSynced();
 
                 foreach ($result as $model){
                     $this->editProduct($model);

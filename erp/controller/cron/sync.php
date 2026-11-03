@@ -23,7 +23,6 @@ class Sync extends \Opencart\System\Engine\Controller {
         // Extension
         @set_time_limit(0);
 
-        $this->log->write('Cron sync');
         $this->load->model('cron/sync');
         $result = $this->model_cron_sync->getSyncs();
 
