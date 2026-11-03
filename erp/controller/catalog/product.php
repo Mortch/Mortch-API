@@ -18,7 +18,6 @@ class Product extends \Opencart\System\Engine\Controller
    */
   public function index(): void
   {
-    $this->log->write("erp:catalog/product");
     $this->load->language('product');
 
     $post_info = $this->request->post;
@@ -43,7 +42,6 @@ class Product extends \Opencart\System\Engine\Controller
     if (!$json) {
       $this->load->model('catalog/product');
 
-      $this->log->write($product_list);
       foreach ($product_list as $product) {
         if ($product['model']) {
           $product_info = $this->model_catalog_product->getProductByModel($product['model']);
@@ -60,7 +58,9 @@ class Product extends \Opencart\System\Engine\Controller
     }
 
 
-    $this->log->write($json);
+    if (!empty($json['code'])) {
+      $this->log->write($json);
+    }
     $this->response->addHeader('Content-Type: application/json');
     $this->response->setOutput(json_encode($json));
   }
@@ -113,14 +113,12 @@ class Product extends \Opencart\System\Engine\Controller
    */
   public function add(): void
   {
-    $this->log->write('add');
     $this->load->language('catalog/product');
 
     $json = [];
 
     $post_list = $this->request->post;
 
-    $this->log->write($post_list);
     if (!$post_list || !isset($post_list['products'])) {
       $json['code'] = 1;
       $json['error'] = $this->language->get('error_warning');
@@ -136,7 +134,6 @@ class Product extends \Opencart\System\Engine\Controller
       foreach ($post_list['products'] as $product) {
         if ($product['model']) {
           $product_info = $this->model_catalog_product->getProductByModel($product['model']);
-          $this->log->write($product);
           if (isset($product_description[$product['model']])) {
             $product['description'] = $product_description[$product['model']];
           }
@@ -151,6 +148,9 @@ class Product extends \Opencart\System\Engine\Controller
       $json['success'] = $this->language->get('text_success');
     }
 
+    if (!empty($json['code'])) {
+      $this->log->write($json);
+    }
     $this->response->addHeader('Content-Type: application/json');
     $this->response->setOutput(json_encode($json));
   }

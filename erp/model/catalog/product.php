@@ -100,7 +100,6 @@ class Product extends \Opencart\System\Engine\Model {
             $sql .= ", `erp_status` = '" . (int)$erp_status . "'";
         }
         $sql.=" WHERE `product_id` = '" . (int)$product_id . "'";
-        $this->log->write($sql);
 	    $this->db->query($sql);
 
         if (isset($data['description'])){

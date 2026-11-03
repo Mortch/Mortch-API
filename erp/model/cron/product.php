@@ -78,7 +78,6 @@ class Product extends \Opencart\System\Engine\Model {
 
     public function getProducts(): array {
         $query = $this->db->query("SELECT `p`.`model`,`p`.`weight`, `p`.`price`, `p`.`quantity`, `pd`.`name` FROM `" . DB_PREFIX . "product` `p` LEFT JOIN `" . DB_PREFIX . "product_description` `pd` ON (`p`.`product_id` = `pd`.`product_id`) where `pd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "';");
-        $this->log->write("SELECT `p`.`model`, `p`.`price`, `p`.`quantity` FROM `" . DB_PREFIX . "product` `p` LEFT JOIN `" . DB_PREFIX . "product_description` `pd` ON (`p`.`product_id` = `pd`.`product_id`) where `pd`.`language_id` = '" . (int)$this->config->get('config_language_id') . "';");
         return $query->rows;
     }
 
@@ -139,6 +138,7 @@ class Product extends \Opencart\System\Engine\Model {
         $products = [];
 
         if(!$product_list){
+            $this->log->write('pushProductList: no products found (config_language_id=' . (int)$this->config->get('config_language_id') . ')');
             return false;
         }else{
             foreach ($product_list as $product){
@@ -156,6 +156,7 @@ class Product extends \Opencart\System\Engine\Model {
 
             $api_info = $this->model_user_api->getApiByUsername($username);
             if (!$api_info){
+                $this->log->write('pushProductList: api user ' . $username . ' not found or disabled');
                 return false;
             }
 
@@ -175,10 +176,6 @@ class Product extends \Opencart\System\Engine\Model {
             $signature = rawurlencode(base64_encode(hash_hmac('sha1', $string, $sync_key, 1)));
             $url = "http://".$http_host.$php_self."?call=".$call."&user_name=".$username."&time=".$time."&signature=".$signature;
 
-            $this->log->write($string);
-            $this->log->write($signature);
-            $this->log->write($url);
-
             $result = $this->curlRequest($url,"POST",$products);
             if($result !== null){
                 $this->markProductsSynced();
@@ -188,6 +185,8 @@ class Product extends \Opencart\System\Engine\Model {
                 }
 
 
+            }else{
+                $this->log->write('pushProductList: sync failed, no valid response from ' . $http_host);
             }
 
         }
@@ -222,16 +221,24 @@ class Product extends \Opencart\System\Engine\Model {
         $curlError = curl_error($curl);
         $data = json_decode($response, true);
 
-        $this->log->write($data);
         if ($data && isset($data['code']) && $data['code'] == 0){
             if (isset($data['data'])){
                 return $data['data'];
             }else{
+                $this->log->write('pushProductList response error: HTTP ' . $httpCode . ', code=0, missing data');
                 return null;
             }
 
         }else{
-            error_log("Sync failed with HTTP code $httpCode, curl errno $curlErrno: $curlError");
+            if ($curlError){
+                $this->log->write('pushProductList curl error ' . $curlErrno . ': ' . $curlError);
+            }
+
+            $message = is_array($data) && isset($data['code'])
+                ? 'HTTP ' . $httpCode . ', code=' . (int)$data['code'] . ', msg=' . (isset($data['msg']) ? (string)$data['msg'] : '')
+                : 'HTTP ' . $httpCode . ', invalid response, length=' . strlen((string)$response);
+
+            $this->log->write('pushProductList response error: ' . $message);
             return null;
         }
     }

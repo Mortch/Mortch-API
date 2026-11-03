@@ -33,7 +33,6 @@ class Cron extends \Opencart\System\Engine\Controller {
                 }
 
                 $this->model_setting_cron->editCron($result['cron_id']);
-                $this->log->write('Cron completed: ' . $result['code']);
             }
 
         }else{
@@ -48,7 +47,6 @@ class Cron extends \Opencart\System\Engine\Controller {
                         $this->load->controller($result['action']);
 
                         $this->model_setting_cron->editCron($result['cron_id']);
-                        $this->log->write('Cron completed: ' . $result['code']);
                     }
                 }
             }
