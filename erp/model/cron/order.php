@@ -274,7 +274,14 @@ class Order extends \Opencart\System\Engine\Model {
         $data = json_decode($response, true);
 
         $this->log->write($data);
-        if ($data && isset($data['code']) && $data['code'] == 0){
+        $is_success = $data
+            && isset($data['code'])
+            && (
+                (int)$data['code'] === 0
+                || ((int)$data['code'] === 200 && isset($data['duplicate']) && $data['duplicate'] === true)
+            );
+
+        if ($is_success){
             return true;
         }else{
             error_log("Sync failed with HTTP code $httpCode");
