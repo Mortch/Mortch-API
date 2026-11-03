@@ -120,6 +120,7 @@ class Product extends \Opencart\System\Engine\Model {
                 throw $e;
             }
 
+            $this->log->write('pushProductList: database connection lost after API call, reconnecting');
             $this->reconnectDatabase();
             $this->db->query($sql);
         }
@@ -166,29 +167,38 @@ class Product extends \Opencart\System\Engine\Model {
             $sync_key = $api_info['key'];
 
             $call = "getProductList";
-            $time = time();
-            $string = (string)$call . "\n";
-            $string .= $username . "\n";
-            $string .= (string)$http_host . "\n";
-            $string .= (!empty($php_self) ? rtrim(dirname($php_self), '/') . '/' : '/') . "\n";
-            $string .= md5(http_build_query($products)) . "\n";
-            $string .= $time . "\n";
-            $signature = rawurlencode(base64_encode(hash_hmac('sha1', $string, $sync_key, 1)));
-            $url = "http://".$http_host.$php_self."?call=".$call."&user_name=".$username."&time=".$time."&signature=".$signature;
+            $max_attempts = 3;
 
-            $result = $this->curlRequest($url,"POST",$products);
-            if($result !== null){
-                $this->markProductsSynced();
+            for ($attempt = 1; $attempt <= $max_attempts; $attempt++) {
+                // Rebuild the signature on every attempt so a delayed retry cannot reuse an expired timestamp.
+                $time = time();
+                $string = (string)$call . "\n";
+                $string .= $username . "\n";
+                $string .= (string)$http_host . "\n";
+                $string .= (!empty($php_self) ? rtrim(dirname($php_self), '/') . '/' : '/') . "\n";
+                $string .= md5(http_build_query($products)) . "\n";
+                $string .= $time . "\n";
+                $signature = rawurlencode(base64_encode(hash_hmac('sha1', $string, $sync_key, 1)));
+                $url = "http://".$http_host.$php_self."?call=".$call."&user_name=".$username."&time=".$time."&signature=".$signature;
 
-                foreach ($result as $model){
-                    $this->editProduct($model);
+                $result = $this->curlRequest($url, "POST", $products);
+                if ($result !== null) {
+                    $this->markProductsSynced();
+
+                    foreach ($result as $model) {
+                        $this->editProduct($model);
+                    }
+
+                    return true;
                 }
 
-
-            }else{
-                $this->log->write('pushProductList: sync failed, no valid response from ' . $http_host);
+                if ($attempt < $max_attempts) {
+                    sleep($attempt * 10);
+                }
             }
 
+            $this->log->write('pushProductList: sync failed after ' . $max_attempts . ' attempts');
+            return false;
         }
 
 
@@ -196,6 +206,13 @@ class Product extends \Opencart\System\Engine\Model {
     }
 
     public function curlRequest($url,$method,$postData=null){
+        $payload = json_encode($postData, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+
+        if ($payload === false) {
+            $this->log->write('pushProductList: request JSON encode failed: ' . json_last_error_msg());
+            return null;
+        }
+
         $curl = curl_init();
         curl_setopt_array($curl, array(
             CURLOPT_SSL_VERIFYPEER=>false,
@@ -203,15 +220,15 @@ class Product extends \Opencart\System\Engine\Model {
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_ENCODING => '',
             CURLOPT_MAXREDIRS => 10,
-            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_CONNECTTIMEOUT => 20,
             CURLOPT_TIMEOUT => 300,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => $method,
-            CURLOPT_POSTFIELDS =>  json_encode($postData),
+            CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => array(
                 'Connection: keep-alive',
-                'Content-Type: application/json;',
+                'Content-Type: application/json; charset=utf-8',
             ),
         ));
 
