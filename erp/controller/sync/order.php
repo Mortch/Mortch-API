@@ -20,19 +20,14 @@ class Order extends \Opencart\System\Engine\Controller {
      * @return void
      */
     public function index(): void {
-        // Extension
-
-        $this->log->write('Sync order start');
         $this->load->model('cron/order');
         $order_list= $this->model_cron_order->getUnSyncOrders();
         if ($order_list){
             foreach ($order_list as $order_info){
-                $this->log->write('Sync orderId: '.$order_info['order_id']);
-                $this->model_cron_order->pushOrderInfo($order_info['order_id']);
+                if (!$this->model_cron_order->pushOrderInfo($order_info['order_id'])){
+                    $this->log->write('Order sync failed: order_id=' . (int)$order_info['order_id']);
+                }
             }
-        }else{
-            $this->log->write('Sync order no data');
         }
-        $this->log->write('Sync order end');
     }
 }

@@ -24,7 +24,6 @@ class Order extends \Opencart\System\Engine\Model {
 	public function getOrder(int $order_id): array {
 	    $field = "order_id,customer_id,firstname,lastname,email,telephone,shipping_firstname,shipping_lastname,shipping_company,shipping_address_1,shipping_address_2,shipping_city,shipping_country,shipping_postcode,shipping_zone,total,currency_code,shipping_method,comment,payment_method,order_status_id,invoice_no,invoice_prefix,custom_field,payment_custom_field,shipping_custom_field";
 		$order_query = $this->db->query("SELECT ".$field."  FROM `" . DB_PREFIX . "order`  WHERE `order_id` = '" . (int)$order_id . "'");
-		$this->log->write("SELECT ".$field."  FROM `" . DB_PREFIX . "order`  WHERE `order_id` = '" . (int)$order_id . "'");
 
 		if ($order_query->num_rows) {
 
@@ -130,14 +129,11 @@ class Order extends \Opencart\System\Engine\Model {
         $synced_query = $this->db->query("SELECT `is_sync_erp` FROM `" . DB_PREFIX . "order` WHERE `order_id` = '" . (int)$order_id . "'");
 
         if ($synced_query->num_rows && $synced_query->row['is_sync_erp']) {
-            $this->log->write('Order already synced to ERP, skip: ' . (int)$order_id);
-
             return true;
         }
 
         $order_info = $this->getOrder($order_id);
 
-        $this->log->write($order_info);
         $products = [];
 
         // 第一次校验：基础校验
@@ -165,6 +161,7 @@ class Order extends \Opencart\System\Engine\Model {
 
             $api_info = $this->model_user_api->getApiByUsername($username);
             if (!$api_info){
+                $this->log->write('Order sync failed: API user "' . $username . '" not found, order_id=' . (int)$order_id);
                 return false;
             }
 
@@ -184,10 +181,6 @@ class Order extends \Opencart\System\Engine\Model {
             $string .= $time . "\n";
             $signature = rawurlencode(base64_encode(hash_hmac('sha1', $string, $sync_key, 1)));
             $url = "http://".$http_host.$php_self."?call=".$call."&user_name=".$username."&time=".$time."&signature=".$signature;
-
-            $this->log->write($string);
-            $this->log->write($signature);
-            $this->log->write($url);
 
             $result = $this->curlRequest($url,"POST",$order_info);
             if($result){
@@ -270,10 +263,11 @@ class Order extends \Opencart\System\Engine\Model {
         ));
 
         $response = curl_exec($curl);
+        $curlErrno = curl_errno($curl);
+        $curlError = curl_error($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         $data = json_decode($response, true);
 
-        $this->log->write($data);
         $is_success = $data
             && isset($data['code'])
             && (
@@ -284,6 +278,19 @@ class Order extends \Opencart\System\Engine\Model {
         if ($is_success){
             return true;
         }else{
+            $message = 'Order sync API failed: HTTP ' . $httpCode;
+
+            if ($curlErrno){
+                $message .= ', curl(' . $curlErrno . '): ' . $curlError;
+            }
+
+            if (is_array($data) && isset($data['code'])){
+                $message .= ', code=' . (int)$data['code'] . ', msg=' . (isset($data['msg']) ? (string)$data['msg'] : '');
+            }else{
+                $message .= ', response=' . substr((string)$response, 0, 300);
+            }
+
+            $this->log->write($message);
             error_log("Sync failed with HTTP code $httpCode");
             return false;
         }

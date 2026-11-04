@@ -43,7 +43,6 @@ class Order extends \Opencart\System\Engine\Model {
         if (isset($data['shipping_no'])){
             $sql.=",`shipping_no` = '" . $this->db->escape((string)$data['shipping_no']) . "'";
         }
-        $this->log->write($sql);
 
         $this->db->query($sql);
 

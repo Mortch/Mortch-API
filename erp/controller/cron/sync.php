@@ -27,8 +27,6 @@ class Sync extends \Opencart\System\Engine\Controller {
         $result = $this->model_cron_sync->getSyncs();
 
         foreach ($result as $sync){
-            $this->log->write('Cron sync ' . $sync['sync_id']);
-
             $res = false;
             $error = '';
 

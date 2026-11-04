@@ -15,31 +15,39 @@ class Order extends \Opencart\System\Engine\Controller {
 	 * @return void
 	 */
 	public function changeStatus(): void {
-	    $this->log->write('changeStatus');
-
         $this->load->language('sale/order');
 
 		$json = [];
 
         $post_list = $this->request->post;
 
-        $this->log->write($post_list);
 		if (!$post_list) {
-            $json['code'] = 1;
-            $json['error'] = $this->language->get('error_warning');
+            $this->log->write('changeStatus failed: empty request');
+            $this->response->addHeader('Content-Type: application/json');
+            $this->response->setOutput(json_encode(['code' => 1, 'error' => $this->language->get('error_warning')]));
+            return;
 		}
 
 		if (!$json) {
-		    $order_id = $post_list['order_id'];
+		    $order_id = (int)$post_list['order_id'];
             $this->load->model('sale/order');
             $order_info = $this->model_sale_order->getOrder($order_id);
             if(!$order_info){
-                $json['code'] = 1;
-                $json['error'] = $this->language->get('error_warning');
+                $this->log->write('changeStatus failed: order not found, order_id=' . $order_id);
+                $this->response->addHeader('Content-Type: application/json');
+                $this->response->setOutput(json_encode(['code' => 1, 'error' => $this->language->get('error_warning')]));
+                return;
             }
 
-            $order_status = $post_list['order_status'];
+            $order_status = isset($post_list['order_status']) ? (string)$post_list['order_status'] : '';
             $order_status_info = $this->model_sale_order->getOrderStatus($order_status);
+            if (!$order_status_info){
+                $this->log->write('changeStatus failed: unknown order status "' . $order_status . '", order_id=' . $order_id);
+                $this->response->addHeader('Content-Type: application/json');
+                $this->response->setOutput(json_encode(['code' => 1, 'error' => $this->language->get('error_warning')]));
+                return;
+            }
+
             $order_history_info = [];
             if ($order_status_info){
                 $order_history_info = $this->model_sale_order->getHistory($order_id,$order_status_info['order_status_id']);;

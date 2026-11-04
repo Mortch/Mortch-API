@@ -33,7 +33,6 @@ class Order extends \Opencart\System\Engine\Controller {
 
         if ($wait) {
             // 管理端手动同步：立即执行并等待结果
-            $this->log->write('Cron order wait sync: ' . $order_id);
             $result = $this->model_cron_order->pushOrderInfo($order_id);
 
             if ($sync_id) {
@@ -65,15 +64,12 @@ class Order extends \Opencart\System\Engine\Controller {
             @flush();
         }
 
-        $this->log->write("Order async sync attempt: order_id={$order_id}");
         $result = $this->model_cron_order->pushOrderInfo($order_id);
 
         if ($result) {
             if ($sync_id) {
                 $this->model_cron_sync->updateSync($sync_id);
             }
-
-            $this->log->write("Order async sync success: order_id={$order_id}");
 
             return;
         }
