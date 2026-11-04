@@ -9,6 +9,8 @@ namespace Opencart\Erp\Model\Cron;
  */
 class Product extends \Opencart\System\Engine\Model {
 
+    private bool $retryProductSync = false;
+
 
     /**
      * Currency
@@ -192,6 +194,11 @@ class Product extends \Opencart\System\Engine\Model {
                     return true;
                 }
 
+                if (!$this->retryProductSync) {
+                    $this->log->write('pushProductList: sync stopped on non-retryable API error');
+                    return false;
+                }
+
                 if ($attempt < $max_attempts) {
                     sleep($attempt * 10);
                 }
@@ -206,6 +213,8 @@ class Product extends \Opencart\System\Engine\Model {
     }
 
     public function curlRequest($url,$method,$postData=null){
+        $this->retryProductSync = false;
+
         $payload = json_encode($postData, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
 
         if ($payload === false) {
@@ -237,6 +246,7 @@ class Product extends \Opencart\System\Engine\Model {
         $curlErrno = curl_errno($curl);
         $curlError = curl_error($curl);
         $data = json_decode($response, true);
+        $this->retryProductSync = $curlErrno > 0 || $httpCode == 0 || $httpCode >= 500;
 
         if ($data && isset($data['code']) && $data['code'] == 0){
             if (isset($data['data'])){
@@ -247,6 +257,10 @@ class Product extends \Opencart\System\Engine\Model {
             }
 
         }else{
+            if (!is_array($data) || (isset($data['code']) && (int)$data['code'] >= 500)) {
+                $this->retryProductSync = true;
+            }
+
             if ($curlError){
                 $this->log->write('pushProductList curl error ' . $curlErrno . ': ' . $curlError);
             }
