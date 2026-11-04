@@ -291,7 +291,6 @@ class Order extends \Opencart\System\Engine\Model {
             }
 
             $this->log->write($message);
-            error_log("Sync failed with HTTP code $httpCode");
             return false;
         }
     }

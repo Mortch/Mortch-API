@@ -41,7 +41,6 @@ class Cart extends \Opencart\System\Engine\Model {
 
 
         $customer_info = $this->getCustomer($customer_id);
-        $this->log->write($cart_info);
 
         $post_data = [
             'customer' => $customer_info,
@@ -57,6 +56,7 @@ class Cart extends \Opencart\System\Engine\Model {
 
             $api_info = $this->model_user_api->getApiByUsername($username);
             if (!$api_info){
+                $this->log->write('Cart sync failed: API user "' . $username . '" not found, customer_id=' . (int)$customer_id);
                 return false;
             }
 
@@ -77,16 +77,19 @@ class Cart extends \Opencart\System\Engine\Model {
             $signature = rawurlencode(base64_encode(hash_hmac('sha1', $string, $sync_key, 1)));
             $url = "http://".$http_host.$php_self."?call=".$call."&user_name=".$username."&time=".$time."&signature=".$signature;
 
-            $this->log->write($string);
-            $this->log->write($signature);
-            $this->log->write($url);
-
             $result = $this->curlRequest($url,"POST",$post_data);
             return $result;
         }
 
     }
     public function curlRequest($url,$method,$postData=null){
+        $payload = json_encode($postData, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+
+        if ($payload === false) {
+            $this->log->write('Cart sync failed: request JSON encode error: ' . json_last_error_msg());
+            return false;
+        }
+
         $curl = curl_init();
         curl_setopt_array($curl, array(
             CURLOPT_SSL_VERIFYPEER=>false,
@@ -99,22 +102,35 @@ class Cart extends \Opencart\System\Engine\Model {
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             CURLOPT_CUSTOMREQUEST => $method,
-            CURLOPT_POSTFIELDS =>  json_encode($postData),
+            CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => array(
                 'Connection: keep-alive',
-                'Content-Type: application/json;',
+                'Content-Type: application/json; charset=utf-8',
             ),
         ));
 
         $response = curl_exec($curl);
+        $curlErrno = curl_errno($curl);
+        $curlError = curl_error($curl);
         $httpCode = curl_getinfo($curl, CURLINFO_HTTP_CODE);
         $data = json_decode($response, true);
 
-        $this->log->write($data);
         if ($data && isset($data['code']) && $data['code'] == 0){
             return true;
         }else{
-            error_log("Sync failed with HTTP code $httpCode");
+            $message = 'Cart sync failed: HTTP ' . $httpCode;
+
+            if ($curlErrno) {
+                $message .= ', curl(' . $curlErrno . '): ' . $curlError;
+            }
+
+            if (is_array($data) && isset($data['code'])) {
+                $message .= ', code=' . (int)$data['code'] . ', msg=' . (isset($data['msg']) ? (string)$data['msg'] : '');
+            } else {
+                $message .= ', invalid response, length=' . strlen((string)$response);
+            }
+
+            $this->log->write($message);
             return false;
         }
     }

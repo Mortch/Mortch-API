@@ -22,7 +22,6 @@ class Cart extends \Opencart\System\Engine\Controller {
     public function index(): void {
         // Extension
 
-        $this->log->write('Cron cart');
         $customer_id = $this->request->get['customer_id'];
         $this->load->model('cron/cart');
         $this->model_cron_cart->pushCartInfo($customer_id);
