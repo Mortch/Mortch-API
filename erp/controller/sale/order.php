@@ -39,10 +39,12 @@ class Order extends \Opencart\System\Engine\Controller {
                 return;
             }
 
-            $order_status = isset($post_list['order_status']) ? (string)$post_list['order_status'] : '';
+            $requested_order_status = isset($post_list['order_status']) ? trim((string)$post_list['order_status']) : '';
+            $is_order_approved = strcasecmp($requested_order_status, 'Order Approved') === 0;
+            $order_status = $is_order_approved ? 'Processing' : $requested_order_status;
             $order_status_info = $this->model_sale_order->getOrderStatus($order_status);
             if (!$order_status_info){
-                $this->log->write('changeStatus failed: unknown order status "' . $order_status . '", order_id=' . $order_id);
+                $this->log->write('changeStatus failed: unknown order status "' . $requested_order_status . '", order_id=' . $order_id);
                 $this->response->addHeader('Content-Type: application/json');
                 $this->response->setOutput(json_encode(['code' => 1, 'error' => $this->language->get('error_warning')]));
                 return;
@@ -53,8 +55,16 @@ class Order extends \Opencart\System\Engine\Controller {
                 $order_history_info = $this->model_sale_order->getHistory($order_id,$order_status_info['order_status_id']);;
             }
 
-            if ($order_status == 'Order Approved' && !$order_history_info){
-               
+            if ($is_order_approved) {
+                $pending_status_info = $this->model_sale_order->getOrderStatus('Pending');
+
+                if ($pending_status_info && (int)$order_info['order_status_id'] === (int)$pending_status_info['order_status_id']) {
+                    if (!$order_history_info) {
+                        $this->model_sale_order->addHistory($order_id, $order_status_info['order_status_id'], "", 1);
+                    } else {
+                        $this->model_sale_order->editOrderStatusId($order_id, $order_status_info['order_status_id']);
+                    }
+                }
             }
             if($order_status == 'Packing Done' && $order_info['order_status'] != 'Packing Done' && !$order_history_info){
 
