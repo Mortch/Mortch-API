@@ -85,35 +85,32 @@ class Atlas extends \Opencart\System\Engine\Model {
 
 		// Related
 		if (isset($data['atlas_related'])) {
-            $atlas_sno = [];
-            if(isset($data['atlas_sno'])){
-                $atlas_sno = $data['atlas_sno'];
-            }
+            $atlas_sno = $data['atlas_sno'] ?? [];
+            $related_sortorder = $data['atlas_sortorder'] ?? [];
 
 			foreach ($data['atlas_related'] as $key=>$related_id) {
-				$this->model_sync_atlas->addRelated($atlas_id, $related_id,$atlas_sno[$key]);
+				$this->model_sync_atlas->addRelated(
+                    $atlas_id,
+                    (int)$related_id,
+                    (string)($atlas_sno[$key] ?? ''),
+                    (string)($related_sortorder[$key] ?? '')
+                );
 			}
 		}
 
         if (isset($data['atlas_snos'])) {
-            $model = [];
-            if(isset($data['atlas_models'])){
-                $model = $data['atlas_models'];
-            }
-            $sortorder = [];
-            if (isset($data['atlas_sortorders'])) {
-                $sortorder = $data['atlas_sortorders'];
-            } elseif (isset($data['atlas_sortorder'])) {
-                $sortorder = $data['atlas_sortorder'];
-            }
-            $atlas_related_temp = [];
-            if(isset($data['atlas_related_temp'])){
-                $atlas_related_temp = $data['atlas_related_temp'];
-            }
+            $model = $data['atlas_models'] ?? [];
+            $sortorder = $data['atlas_sortorders'] ?? [];
+            $atlas_related_temp = $data['atlas_related_temp'] ?? [];
 
             foreach ($data['atlas_snos'] as $key=>$sno) {
                 if($atlas_related_temp && $atlas_related_temp[$key]){
-                    $this->model_sync_atlas->addRelated($atlas_id, $atlas_related_temp[$key],$sno);
+                    $this->model_sync_atlas->addRelated(
+                        $atlas_id,
+                        (int)$atlas_related_temp[$key],
+                        (string)$sno,
+                        (string)($sortorder[$key] ?? '')
+                    );
                 }else{
                     $this->model_sync_atlas->addRelatedTemp($atlas_id, $sno, (string)($model[$key] ?? ''), (string)($sortorder[$key] ?? ''));
                 }
@@ -255,12 +252,16 @@ class Atlas extends \Opencart\System\Engine\Model {
 		$this->model_sync_atlas->deleteRelated($atlas_id);
 
 		if (isset($data['atlas_related'])) {
-            $atlas_sno = [];
-            if(isset($data['atlas_sno'])){
-                $atlas_sno = $data['atlas_sno'];
-            }
+            $atlas_sno = $data['atlas_sno'] ?? [];
+            $related_sortorder = $data['atlas_sortorder'] ?? [];
+
 			foreach ($data['atlas_related'] as $key=>$related_id) {
-				$this->model_sync_atlas->addRelated($atlas_id, $related_id,$atlas_sno[$key]);
+				$this->model_sync_atlas->addRelated(
+                    $atlas_id,
+                    (int)$related_id,
+                    (string)($atlas_sno[$key] ?? ''),
+                    (string)($related_sortorder[$key] ?? '')
+                );
 			}
 		}
 
@@ -269,24 +270,18 @@ class Atlas extends \Opencart\System\Engine\Model {
 
         // Related
         if (isset($data['atlas_snos'])) {
-            $model = [];
-            if(isset($data['atlas_models'])){
-                $model = $data['atlas_models'];
-            }
-            $sortorder = [];
-            if (isset($data['atlas_sortorders'])) {
-                $sortorder = $data['atlas_sortorders'];
-            } elseif (isset($data['atlas_sortorder'])) {
-                $sortorder = $data['atlas_sortorder'];
-            }
-            $atlas_related_temp = [];
-            if(isset($data['atlas_related_temp'])){
-               $atlas_related_temp = $data['atlas_related_temp'];
-            }
+            $model = $data['atlas_models'] ?? [];
+            $sortorder = $data['atlas_sortorders'] ?? [];
+            $atlas_related_temp = $data['atlas_related_temp'] ?? [];
 
             foreach ($data['atlas_snos'] as $key=>$sno) {
                 if($atlas_related_temp && $atlas_related_temp[$key]){
-                    $this->model_sync_atlas->addRelated($atlas_id, $atlas_related_temp[$key],$sno);
+                    $this->model_sync_atlas->addRelated(
+                        $atlas_id,
+                        (int)$atlas_related_temp[$key],
+                        (string)$sno,
+                        (string)($sortorder[$key] ?? '')
+                    );
                 }else{
                     $this->model_sync_atlas->addRelatedTemp($atlas_id, $sno, (string)($model[$key] ?? ''), (string)($sortorder[$key] ?? ''));
                 }
@@ -638,9 +633,13 @@ class Atlas extends \Opencart\System\Engine\Model {
 	 *
 	 * $this->model_sync_atlas->addRelated($atlas_id, $related_id);
 	 */
-	public function addRelated(int $atlas_id, int $product_id,string $sno): void {
+	public function addRelated(int $atlas_id, int $product_id, string $sno, string $sortorder = ''): void {
 		$this->db->query("DELETE FROM `" . DB_PREFIX . "atlas_product_related` WHERE `atlas_id` = '" . (int)$atlas_id . "' AND `product_id` = '" . (int)$product_id . "'");
-		$this->db->query("INSERT INTO `" . DB_PREFIX . "atlas_product_related` SET `atlas_id` = '" . (int)$atlas_id . "', `product_id` = '" . (int)$product_id . "', `sno` = '" . (string)$sno . "'");
+		$this->db->query("INSERT INTO `" . DB_PREFIX . "atlas_product_related` SET `atlas_id` = '" . (int)$atlas_id . "', `product_id` = '" . (int)$product_id . "', `sno` = '" . $this->db->escape($sno) . "'");
+
+        if ($sortorder !== '') {
+            $this->db->query("UPDATE `" . DB_PREFIX . "product` SET `sort_order` = '" . (int)$sortorder . "' WHERE `product_id` = '" . (int)$product_id . "'");
+        }
 	}
 
     public function addRelatedTemp(int $atlas_id, string $sno, string $model, string $sortorder = ''): void {
