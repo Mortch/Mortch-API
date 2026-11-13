@@ -23,28 +23,6 @@ class Atlas extends \Opencart\System\Engine\Model {
         return $atlas_data;
     }
 
-    private function getSyncSections(array $data): array {
-        $allowed = ['general', 'associations', 'taxonomy', 'seo', 'markers'];
-
-        if (!array_key_exists('sync_sections', $data)) {
-            return array_fill_keys($allowed, true);
-        }
-
-        $sections = array_fill_keys($allowed, false);
-
-        if (!is_array($data['sync_sections'])) {
-            return $sections;
-        }
-
-        foreach ($data['sync_sections'] as $section) {
-            if (is_string($section) && in_array($section, $allowed, true)) {
-                $sections[$section] = true;
-            }
-        }
-
-        return $sections;
-    }
-
     /**
 	 * Add atlas
 	 *
@@ -69,28 +47,24 @@ class Atlas extends \Opencart\System\Engine\Model {
 	 * $atlas_id = $this->model_sync_atlas->addatlas($atlas_data);
 	 */
 	public function addAtlas(array $data): int {
-        $sync_sections = $this->getSyncSections($data);
-
 		$this->db->query("INSERT INTO `" . DB_PREFIX . "atlas` SET `atlas_id` = '" . (int)$data['atlas_id'] . "',`model` = '" . $this->db->escape((string)$data['model']) . "', `status` = '" . (bool)($data['status'] ?? 0) . "',  `sort_order` = '" . (int)$data['sort_order'] . "', `date_added` = NOW(), `date_modified` = NOW()");
 
 		$atlas_id = $data['atlas_id'];
 
-		if ($sync_sections['general'] && $data['image']) {
+		if ($data['image']) {
 			$this->db->query("UPDATE `" . DB_PREFIX . "atlas` SET `image` = '" . $this->db->escape((string)$data['image']) . "' WHERE `atlas_id` = '" . (int)$atlas_id . "'");
 		}
 
 		// Description
-        if ($sync_sections['general']) {
-            foreach ($data['atlas_description'] as $language_id => $value) {
-                $this->model_sync_atlas->addDescription($atlas_id, $language_id, $value);
-            }
-        }
+		foreach ($data['atlas_description'] as $language_id => $value) {
+			$this->model_sync_atlas->addDescription($atlas_id, $language_id, $value);
+		}
 
         $this->load->model('setting/store');
         $stores = $this->model_setting_store->getStores();
 
 		// Stores
-		if ($sync_sections['taxonomy'] && isset($data['atlas_store'])) {
+		if (isset($data['atlas_store'])) {
             foreach ($stores as $store) {
                 if (!in_array($store['store_id'], $data['atlas_store'])) {
                     array_push($data['atlas_store'], $store['store_id']);
@@ -102,7 +76,7 @@ class Atlas extends \Opencart\System\Engine\Model {
 		}
 
         // Categories
-        if ($sync_sections['taxonomy'] && isset($data['atlas_category'])) {
+        if (isset($data['atlas_category'])) {
             foreach ($data['atlas_category'] as $category_id) {
                 $this->model_sync_atlas->addCategory($atlas_id, $category_id);
 
@@ -112,7 +86,7 @@ class Atlas extends \Opencart\System\Engine\Model {
 		// Related
         $related_product_ids = [];
 
-		if ($sync_sections['associations'] && isset($data['atlas_related'])) {
+		if (isset($data['atlas_related'])) {
             $atlas_sno = $data['atlas_sno'] ?? [];
             $related_sortorder = $data['atlas_sortorder'] ?? [];
 
@@ -127,7 +101,7 @@ class Atlas extends \Opencart\System\Engine\Model {
 			}
 		}
 
-        if ($sync_sections['associations'] && isset($data['atlas_snos'])) {
+        if (isset($data['atlas_snos'])) {
             $model = $data['atlas_models'] ?? [];
             $sortorder = $data['atlas_sortorders'] ?? [];
             $atlas_related_temp = $data['atlas_related_temp'] ?? [];
@@ -148,30 +122,26 @@ class Atlas extends \Opencart\System\Engine\Model {
             }
         }
 
-        if ($sync_sections['associations']) {
-            $this->syncProductRelations($related_product_ids);
-        }
+        $this->syncProductRelations($related_product_ids);
 
         // Point
-        if ($sync_sections['markers']) {
-            $this->deleteMarkers($atlas_id);
+        $this->deleteMarkers($atlas_id);
 
-            if (isset($data['atlas_marker_sno'])) {
-                $atlas_sno = $data['atlas_marker_sno'];
-                if(isset($data['atlas_marker_top'])){
-                    $atlas_top = $data['atlas_marker_top'];
-                }
-                if(isset($data['atlas_marker_left'])){
-                    $atlas_left = $data['atlas_marker_left'];
-                }
-                foreach ($atlas_sno as $key=>$sno) {
-                    $this->addMarker($atlas_id, $sno,$atlas_top[$key],$atlas_left[$key]);
-                }
+        if (isset($data['atlas_marker_sno'])) {
+            $atlas_sno = $data['atlas_marker_sno'];
+            if(isset($data['atlas_marker_top'])){
+                $atlas_top = $data['atlas_marker_top'];
+            }
+            if(isset($data['atlas_marker_left'])){
+                $atlas_left = $data['atlas_marker_left'];
+            }
+            foreach ($atlas_sno as $key=>$sno) {
+                $this->addMarker($atlas_id, $sno,$atlas_top[$key],$atlas_left[$key]);
             }
         }
 
 		// SEO
-		if ($sync_sections['seo'] && isset($data['atlas_seo_url'])) {
+		if (isset($data['atlas_seo_url'])) {
 			$this->load->model('design/seo_url');
 
             $this->load->model('localisation/language');
@@ -248,144 +218,130 @@ class Atlas extends \Opencart\System\Engine\Model {
 	 * $this->model_sync_atlas->editatlas($atlas_id, $atlas_data);
 	 */
 	public function editAtlas(int $atlas_id, array $data): void {
-        $sync_sections = $this->getSyncSections($data);
+		$this->db->query("UPDATE `" . DB_PREFIX . "atlas` SET `model` = '" . $this->db->escape((string)$data['model']) . "', `image` = '" . $this->db->escape((string)$data['image']) . "',  `status` = '" . (bool)($data['status'] ?? 0) . "', `sort_order` = '" . (int)$data['sort_order'] . "', `date_modified` = NOW() WHERE `atlas_id` = '" . (int)$atlas_id . "'");
 
-        if ($sync_sections['general']) {
-            $this->db->query("UPDATE `" . DB_PREFIX . "atlas` SET `model` = '" . $this->db->escape((string)$data['model']) . "', `image` = '" . $this->db->escape((string)$data['image']) . "',  `status` = '" . (bool)($data['status'] ?? 0) . "', `sort_order` = '" . (int)$data['sort_order'] . "', `date_modified` = NOW() WHERE `atlas_id` = '" . (int)$atlas_id . "'");
+		// Description
+		$this->model_sync_atlas->deleteDescriptions($atlas_id);
 
-            // Description
-            $this->model_sync_atlas->deleteDescriptions($atlas_id);
-
-            foreach ($data['atlas_description'] as $language_id => $value) {
-                $this->model_sync_atlas->addDescription($atlas_id, $language_id, $value);
-            }
-        }
+		foreach ($data['atlas_description'] as $language_id => $value) {
+			$this->model_sync_atlas->addDescription($atlas_id, $language_id, $value);
+		}
 
 
 		// Stores
+		$this->model_sync_atlas->deleteStores($atlas_id);
+
         $this->load->model('setting/store');
         $stores = $this->model_setting_store->getStores();
 
-        if ($sync_sections['taxonomy']) {
-            $this->model_sync_atlas->deleteStores($atlas_id);
-
-            if (isset($data['atlas_store'])) {
-                foreach ($stores as $store) {
-                    if (!in_array($store['store_id'], $data['atlas_store'])) {
-                        array_push($data['atlas_store'], $store['store_id']);
-                    }
-                }
-                foreach ($data['atlas_store'] as $store_id) {
-                    $this->model_sync_atlas->addStore($atlas_id, $store_id);
+		if (isset($data['atlas_store'])) {
+            foreach ($stores as $store) {
+                if (!in_array($store['store_id'], $data['atlas_store'])) {
+                    array_push($data['atlas_store'], $store['store_id']);
                 }
             }
-        }
+			foreach ($data['atlas_store'] as $store_id) {
+				$this->model_sync_atlas->addStore($atlas_id, $store_id);
+			}
+		}
 
         // Categories
-        if ($sync_sections['taxonomy']) {
-            $this->model_sync_atlas->deleteCategories($atlas_id);
+        $this->model_sync_atlas->deleteCategories($atlas_id);
 
-            if (isset($data['atlas_category'])) {
-                foreach ($data['atlas_category'] as $category_id) {
-                    $this->model_sync_atlas->addCategory($atlas_id, $category_id);
-                }
+        if (isset($data['atlas_category'])) {
+            foreach ($data['atlas_category'] as $category_id) {
+                $this->model_sync_atlas->addCategory($atlas_id, $category_id);
             }
         }
 
 
 		// Related
+		$this->model_sync_atlas->deleteRelated($atlas_id);
+
         $related_product_ids = [];
 
-        if ($sync_sections['associations']) {
-            $this->model_sync_atlas->deleteRelated($atlas_id);
+		if (isset($data['atlas_related'])) {
+            $atlas_sno = $data['atlas_sno'] ?? [];
+            $related_sortorder = $data['atlas_sortorder'] ?? [];
 
-            if (isset($data['atlas_related'])) {
-                $atlas_sno = $data['atlas_sno'] ?? [];
-                $related_sortorder = $data['atlas_sortorder'] ?? [];
+			foreach ($data['atlas_related'] as $key=>$related_id) {
+				$this->model_sync_atlas->addRelated(
+                    $atlas_id,
+                    (int)$related_id,
+                    (string)($atlas_sno[$key] ?? ''),
+                    (string)($related_sortorder[$key] ?? '')
+                );
+                $related_product_ids[] = (int)$related_id;
+			}
+		}
 
-                foreach ($data['atlas_related'] as $key=>$related_id) {
+        // Related
+        $this->model_sync_atlas->deleteRelatedTemp($atlas_id);
+
+        // Related
+        if (isset($data['atlas_snos'])) {
+            $model = $data['atlas_models'] ?? [];
+            $sortorder = $data['atlas_sortorders'] ?? [];
+            $atlas_related_temp = $data['atlas_related_temp'] ?? [];
+
+            foreach ($data['atlas_snos'] as $key=>$sno) {
+                if($atlas_related_temp && $atlas_related_temp[$key]){
                     $this->model_sync_atlas->addRelated(
                         $atlas_id,
-                        (int)$related_id,
-                        (string)($atlas_sno[$key] ?? ''),
-                        (string)($related_sortorder[$key] ?? '')
+                        (int)$atlas_related_temp[$key],
+                        (string)$sno,
+                        (string)($sortorder[$key] ?? '')
                     );
-                    $related_product_ids[] = (int)$related_id;
+                    $related_product_ids[] = (int)$atlas_related_temp[$key];
+                }else{
+                    $this->model_sync_atlas->addRelatedTemp($atlas_id, $sno, (string)($model[$key] ?? ''), (string)($sortorder[$key] ?? ''));
                 }
+
             }
-
-            // Related
-            $this->model_sync_atlas->deleteRelatedTemp($atlas_id);
-
-            // Related
-            if (isset($data['atlas_snos'])) {
-                $model = $data['atlas_models'] ?? [];
-                $sortorder = $data['atlas_sortorders'] ?? [];
-                $atlas_related_temp = $data['atlas_related_temp'] ?? [];
-
-                foreach ($data['atlas_snos'] as $key=>$sno) {
-                    if($atlas_related_temp && $atlas_related_temp[$key]){
-                        $this->model_sync_atlas->addRelated(
-                            $atlas_id,
-                            (int)$atlas_related_temp[$key],
-                            (string)$sno,
-                            (string)($sortorder[$key] ?? '')
-                        );
-                        $related_product_ids[] = (int)$atlas_related_temp[$key];
-                    }else{
-                        $this->model_sync_atlas->addRelatedTemp($atlas_id, $sno, (string)($model[$key] ?? ''), (string)($sortorder[$key] ?? ''));
-                    }
-
-                }
-            }
-
-            $this->syncProductRelations($related_product_ids);
         }
 
-        // Point
-        if ($sync_sections['markers']) {
-            $this->deleteMarkers($atlas_id);
+        $this->syncProductRelations($related_product_ids);
 
-            if (isset($data['atlas_marker_sno'])) {
-                $atlas_sno = $data['atlas_marker_sno'];
-                if(isset($data['atlas_marker_top'])){
-                    $atlas_top = $data['atlas_marker_top'];
-                }
-                if(isset($data['atlas_marker_left'])){
-                    $atlas_left = $data['atlas_marker_left'];
-                }
-                foreach ($atlas_sno as $key=>$sno) {
-                    $this->addMarker($atlas_id, $sno,$atlas_top[$key],$atlas_left[$key]);
-                }
+        // Point
+        $this->deleteMarkers($atlas_id);
+
+        if (isset($data['atlas_marker_sno'])) {
+            $atlas_sno = $data['atlas_marker_sno'];
+            if(isset($data['atlas_marker_top'])){
+                $atlas_top = $data['atlas_marker_top'];
+            }
+            if(isset($data['atlas_marker_left'])){
+                $atlas_left = $data['atlas_marker_left'];
+            }
+            foreach ($atlas_sno as $key=>$sno) {
+                $this->addMarker($atlas_id, $sno,$atlas_top[$key],$atlas_left[$key]);
             }
         }
 
 		// SEO
-        if ($sync_sections['seo']) {
-            $this->load->model('design/seo_url');
-            $this->model_design_seo_url->deleteSeoUrlsByKeyValue('atlas_id', $atlas_id);
+        $this->load->model('design/seo_url');
+		$this->model_design_seo_url->deleteSeoUrlsByKeyValue('atlas_id', $atlas_id);
 
-            $this->load->model('localisation/language');
-            $languages = $this->model_localisation_language->getLanguages();
-            $language_list = [];
-            foreach ($languages as $language){
-                array_push($language_list, $language['language_id']);
-            }
-
-            if (isset($data['atlas_seo_url'])) {
-                foreach ($data['atlas_seo_url'] as $store_id => $language) {
-                    foreach ($language as $language_id => $keyword) {
-                        if (in_array($language_id, $language_list)){
-                            $this->model_design_seo_url->addSeoUrl('atlas_id', $atlas_id, $keyword, $store_id, $language_id);
-                            foreach ($stores as $store){
-                                $this->model_design_seo_url->addSeoUrl('atlas_id', $atlas_id, $keyword, $store['store_id'], $language_id);
-                            }
-                        }
-
-                    }
-                }
-            }
+        $this->load->model('localisation/language');
+        $languages = $this->model_localisation_language->getLanguages();
+        $language_list = [];
+        foreach ($languages as $language){
+            array_push($language_list, $language['language_id']);
         }
+
+		if (isset($data['atlas_seo_url'])) {
+			foreach ($data['atlas_seo_url'] as $store_id => $language) {
+				foreach ($language as $language_id => $keyword) {
+				    if (in_array($language_id, $language_list)){
+                        $this->model_design_seo_url->addSeoUrl('atlas_id', $atlas_id, $keyword, $store_id, $language_id);
+                        foreach ($stores as $store){
+                            $this->model_design_seo_url->addSeoUrl('atlas_id', $atlas_id, $keyword, $store['store_id'], $language_id);
+                        }
+                    }
+
+				}
+			}
+		}
 
 
 		$this->cache->delete('atlas');
