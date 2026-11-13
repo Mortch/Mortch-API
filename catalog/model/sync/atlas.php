@@ -84,6 +84,8 @@ class Atlas extends \Opencart\System\Engine\Model {
         }
 
 		// Related
+        $related_product_ids = [];
+
 		if (isset($data['atlas_related'])) {
             $atlas_sno = $data['atlas_sno'] ?? [];
             $related_sortorder = $data['atlas_sortorder'] ?? [];
@@ -95,6 +97,7 @@ class Atlas extends \Opencart\System\Engine\Model {
                     (string)($atlas_sno[$key] ?? ''),
                     (string)($related_sortorder[$key] ?? '')
                 );
+                $related_product_ids[] = (int)$related_id;
 			}
 		}
 
@@ -111,12 +114,16 @@ class Atlas extends \Opencart\System\Engine\Model {
                         (string)$sno,
                         (string)($sortorder[$key] ?? '')
                     );
+                    $related_product_ids[] = (int)$atlas_related_temp[$key];
                 }else{
                     $this->model_sync_atlas->addRelatedTemp($atlas_id, $sno, (string)($model[$key] ?? ''), (string)($sortorder[$key] ?? ''));
                 }
 
             }
         }
+
+        $this->syncProductRelations($related_product_ids);
+
         // Point
         $this->deleteMarkers($atlas_id);
 
@@ -251,6 +258,8 @@ class Atlas extends \Opencart\System\Engine\Model {
 		// Related
 		$this->model_sync_atlas->deleteRelated($atlas_id);
 
+        $related_product_ids = [];
+
 		if (isset($data['atlas_related'])) {
             $atlas_sno = $data['atlas_sno'] ?? [];
             $related_sortorder = $data['atlas_sortorder'] ?? [];
@@ -262,6 +271,7 @@ class Atlas extends \Opencart\System\Engine\Model {
                     (string)($atlas_sno[$key] ?? ''),
                     (string)($related_sortorder[$key] ?? '')
                 );
+                $related_product_ids[] = (int)$related_id;
 			}
 		}
 
@@ -282,12 +292,15 @@ class Atlas extends \Opencart\System\Engine\Model {
                         (string)$sno,
                         (string)($sortorder[$key] ?? '')
                     );
+                    $related_product_ids[] = (int)$atlas_related_temp[$key];
                 }else{
                     $this->model_sync_atlas->addRelatedTemp($atlas_id, $sno, (string)($model[$key] ?? ''), (string)($sortorder[$key] ?? ''));
                 }
 
             }
         }
+
+        $this->syncProductRelations($related_product_ids);
 
         // Point
         $this->deleteMarkers($atlas_id);
@@ -673,6 +686,58 @@ class Atlas extends \Opencart\System\Engine\Model {
 	public function deleteRelated(int $atlas_id): void {
 		$this->db->query("DELETE FROM `" . DB_PREFIX . "atlas_product_related` WHERE `atlas_id` = '" . (int)$atlas_id . "'");
 	}
+
+    public function syncProductRelations(array $product_ids): void {
+        $product_ids = array_values(array_unique(array_filter(array_map('intval', $product_ids))));
+
+        if (count($product_ids) < 2) {
+            return;
+        }
+
+        $query = $this->db->query(
+            "SELECT `product_id` FROM `" . DB_PREFIX . "product` WHERE `product_id` IN (" . implode(',', $product_ids) . ")"
+        );
+
+        $valid_product_ids = [];
+
+        foreach ($query->rows as $row) {
+            $valid_product_ids[] = (int)$row['product_id'];
+        }
+
+        if (count($valid_product_ids) < 2) {
+            return;
+        }
+
+        foreach ($valid_product_ids as $product_main) {
+            foreach ($valid_product_ids as $product_sub) {
+                if ($product_main === $product_sub) {
+                    continue;
+                }
+
+                $this->db->query(
+                    "INSERT IGNORE INTO `" . DB_PREFIX . "product_related` (`product_id`, `related_id`) VALUES (" . (int)$product_main . ", " . (int)$product_sub . ")"
+                );
+            }
+        }
+
+        foreach ($valid_product_ids as $product_main) {
+            $this->db->query(
+                "DELETE a FROM `" . DB_PREFIX . "product_related` a JOIN (
+                    SELECT a2.`related_id`
+                    FROM `" . DB_PREFIX . "product_related` a2
+                    LEFT JOIN (
+                        SELECT `product_id`, SUM(`quantity`) AS qtys
+                        FROM `" . DB_PREFIX . "order_product`
+                        GROUP BY `product_id`
+                    ) b ON a2.`related_id` = b.`product_id`
+                    WHERE a2.`product_id` = " . (int)$product_main . "
+                    ORDER BY qtys DESC, a2.`related_id` ASC
+                    LIMIT 20, 1024
+                ) d ON a.`related_id` = d.`related_id`
+                WHERE a.`product_id` = " . (int)$product_main
+            );
+        }
+    }
 
 
     public function addMarker(int $atlas_id,string $sno, float $top, float $left): void {
