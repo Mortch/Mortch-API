@@ -23,6 +23,7 @@ class Api extends \Opencart\System\Engine\Controller {
 			'sync/sync.category',
             'sync/sync.product',
             'sync/sync.atlas',
+            'sync/sync.vehicle',
 //            'backup/backup'
 		];
 
@@ -33,7 +34,7 @@ class Api extends \Opencart\System\Engine\Controller {
 		    return null;
         }
         // Block direct access to other methods
-        if ($route == !in_array($route, $allowed)) {
+        if (!in_array($route, $allowed, true)) {
 
             return new \Opencart\System\Engine\Action('startup/api.permission');
         }
@@ -68,7 +69,7 @@ class Api extends \Opencart\System\Engine\Controller {
 				$time_start = time() - 450;
 				$time_end = time() + 450;
 
-				if ($time < $time_start && $time > $time_end) {
+				if ($time < $time_start || $time > $time_end) {
 					$status = false;
 				}
 			}

@@ -131,4 +131,31 @@ class Sync extends \Opencart\System\Engine\Controller {
         $this->response->setOutput(json_encode($json));
     }
 
+    public function vehicle(): void {
+        $this->load->language('sync/sync');
+
+        $json = [];
+        $vehicle_info = $this->request->post;
+        $vid = (int)($vehicle_info['vid'] ?? 0);
+
+        if (!$vehicle_info || !$vid) {
+            $json['code'] = 1;
+            $json['error'] = 'vid is missing in the posted data';
+        } else {
+            try {
+                $this->load->model('sync/vehicle');
+                $this->model_sync_vehicle->syncVehicle($vid, $vehicle_info);
+                $json['code'] = 0;
+                $json['success'] = $this->language->get('text_success');
+            } catch (\Throwable $e) {
+                $this->log->write('Sync vehicle failed: ' . $e->getMessage());
+                $json['code'] = 1;
+                $json['error'] = 'Sync vehicle failed: ' . $e->getMessage();
+            }
+        }
+
+        $this->response->addHeader('Content-Type: application/json');
+        $this->response->setOutput(json_encode($json));
+    }
+
 }
